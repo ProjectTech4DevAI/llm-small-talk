@@ -1,6 +1,9 @@
 import sys
+import csv
 import logging
 from argparse import ArgumentParser
+from dataclasses import dataclass
+from multiprocessing import Pool, Queue
 
 import pandas as pd
 from semantic_router import Route
@@ -10,41 +13,95 @@ from semantic_router.encoders import OpenAIEncoder
 sagemaker_config_logger = logging.getLogger('sagemaker.config')
 sagemaker_config_logger.setLevel(logging.WARNING)
 
-def mk_routes(df):
-    for (i, g) in df.groupby('classification', sort=False):
-        yield Route(name=i, utterances=g['question'].to_list())
+#
+#
+#
+@dataclass
+class Data:
+    train: pd.DataFrame
+    test: pd.DataFrame
 
-def do_routes(layer):
-    def f(x):
-        return x['question'].apply(lambda y: layer(y).name)
+    def __init__(self, fp, args):
+        df = pd.read_csv(fp)
+        train_test = df.groupby('train', sort=False)
+        (self.test, self.train) = map(train_test.get_group, range(2))
+        if 0 < args.train_size < 1:
+            self.train = self.train.sample(
+                frac=args.train_size,
+                random_state=args.seed,
+            )
 
-    return f
+#
+#
+#
+class SemanticRouter:
+    @staticmethod
+    def routes(df):
+        for (n, g) in df.groupby('classification', sort=False):
+            u = g['question'].to_list()
+            yield Route(name=n, utterances=u)
 
+    def __init__(self, df):
+        encoder = OpenAIEncoder()
+        routes = list(self.routes(df))
+        self.rl = RouteLayer(encoder=encoder, routes=routes)
+
+    def __call__(self, query):
+        return self.rl(query).name
+
+#
+#
+#
+def func(incoming, outgoing, df):
+    c = 'classification'
+    router = SemanticRouter(df)
+    static = {
+        'train_n': len(df),
+        'train_c': df[c].unique().size,
+    }
+
+    while True:
+        query = incoming.get()
+
+        question = query['question']
+        logging.warning(question)
+        record = dict(static)
+        record.update({
+            'query': question,
+            'gt': query[c],
+            'pr': router(question),
+        })
+
+        outgoing.put(record)
+
+#
+#
+#
 if __name__ == '__main__':
     arguments = ArgumentParser()
     arguments.add_argument('--seed', type=int, default=1234)
     arguments.add_argument('--train-size', type=float, default=1)
-    arguments.add_argument('--with-positive', action='store_true')
+    arguments.add_argument('--workers', type=int)
     args = arguments.parse_args()
 
-    ctype = 'classification'
+    data = Data(sys.stdin, args)
 
-    df = pd.read_csv(sys.stdin)
-    if not args.with_positive:
-        df = df.query(f'{ctype} != "query"')
+    incoming = Queue()
+    outgoing = Queue()
+    initargs = (
+        outgoing,
+        incoming,
+        data.train,
+    )
 
-    train_test = df.groupby('train', sort=False)
-    train = train_test.get_group(True)
-    if 0 < args.train_size < 1:
-        train = train.sample(frac=args.train_size)
+    with Pool(args.workers, func, initargs):
+        for i in data.test.itertuples(index=False):
+            outgoing.put(i._asdict())
 
-    encoder = OpenAIEncoder()
-    routes = list(mk_routes(train))
-    rl = RouteLayer(encoder=encoder, routes=routes)
-
-    df = (train_test
-          .get_group(False)
-          .filter(items=['question', ctype])
-          .rename(columns={ctype: 'gt'})
-          .assign(pr=do_routes(rl)))
-    df.to_csv(sys.stdout, index=False)
+        writer = None
+        for _ in range(len(data.test)):
+            row = incoming.get()
+            if writer is None:
+                writer = csv.DictWriter(sys.stdout, fieldnames=row)
+                writer.writeheader()
+            writer.writerow(row)
