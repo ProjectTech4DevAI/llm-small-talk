@@ -29,7 +29,7 @@ if __name__ == '__main__':
     ctype = 'classification'
     df = pd.read_csv(sys.stdin, usecols=['question', ctype])
     if not args.with_ignore:
-        df = df.query('classification != "ignore"')
+        df = df.query(f'{ctype} != "ignore"')
     if args.collapse_negatives:
         to_replace = ({ctype: x} for x in (r'^(?!.*query).*$', 'small-talk'))
         df = df.replace(*to_replace, regex=True)
