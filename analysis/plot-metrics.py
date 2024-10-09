@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.ticker import StrMethodFormatter
 
 if __name__ == '__main__':
     arguments = ArgumentParser()
@@ -36,6 +37,7 @@ if __name__ == '__main__':
          )
          ax.set_xlabel('Training examples' if i == nrows else '')
          ax.set_ylabel(m)
+         ax.yaxis.set_major_formatter(StrMethodFormatter('{x:0.2f}'))
          ax.grid(axis='both', alpha=0.4)
 
     plt.savefig(args.output, bbox_inches='tight')
