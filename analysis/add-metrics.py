@@ -31,7 +31,7 @@ class RateMetric(Metric):
 
     def __call__(self, gt, pr):
         counts = cl.Counter(self.pos_neg(gt, pr))
-        (f, t) = map(counts.get, (self.f, self.t))
+        (f, t) = (counts[x] for x in (self.f, self.t))
         return f / (f + t)
 
     def pos_neg(self, gt, pr):
