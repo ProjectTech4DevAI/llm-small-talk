@@ -53,26 +53,27 @@ class SemanticRouter:
 #
 #
 #
-def func(incoming, outgoing, df):
-    c = 'classification'
+def func(incoming, outgoing, df, args):
+    _c = 'classification'
+
     router = SemanticRouter(df)
     static = {
+        'rndseed': args.seed,
         'train_n': len(df),
-        'train_c': df[c].unique().size,
+        'train_c': df[_c].unique().size,
     }
 
     while True:
         query = incoming.get()
-
         question = query['question']
+
         logging.warning(question)
         record = dict(static)
         record.update({
             'query': question,
-            'gt': query[c],
+            'gt': query[_c],
             'pr': router(question),
         })
-
         outgoing.put(record)
 
 #
@@ -93,6 +94,7 @@ if __name__ == '__main__':
         outgoing,
         incoming,
         data.train,
+        args,
     )
 
     with Pool(args.workers, func, initargs):
