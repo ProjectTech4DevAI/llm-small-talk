@@ -22,9 +22,10 @@ class Data:
     test: pd.DataFrame
 
     def __init__(self, fp, args):
-        df = pd.read_csv(fp)
-        train_test = df.groupby('train', sort=False)
-        (self.test, self.train) = map(train_test.get_group, range(2))
+        groups = (pd
+                  .read_csv(fp)
+                  .groupby('train', sort=False))
+        (self.test, self.train) = map(groups.get_group, range(2))
         if 0 < args.train_size < 1:
             self.train = self.train.sample(
                 frac=args.train_size,
