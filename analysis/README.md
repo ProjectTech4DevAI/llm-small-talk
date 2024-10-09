@@ -7,5 +7,5 @@ results in `/foo/bar/results`, do the following:
 ```bash
 python data-clean.py --data /foo/bar/results \
     | python add-metrics.py \
-    | python plot-accuracy.py --output metrics.png
+    | python plot-metrics.py --output metrics.png
 ```
