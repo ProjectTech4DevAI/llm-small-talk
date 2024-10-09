@@ -28,7 +28,6 @@ if __name__ == '__main__':
 
     with Pool(args.workers) as pool:
         writer = None
-
         iterable = ((x, args.positive) for x in args.data.iterdir())
         for i in pool.imap_unordered(func, iterable):
             if writer is None:
