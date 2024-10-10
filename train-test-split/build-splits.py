@@ -21,7 +21,10 @@ def scanf(args, fp):
         if args.collapse_negatives and ctype == 'query':
             ctype = 'small-talk'
 
-        yield dict(query=q, gt=c)
+        yield {
+            'query': q,
+            'gt': c,
+        }
 
 if __name__ == '__main__':
     arguments = ArgumentParser()
