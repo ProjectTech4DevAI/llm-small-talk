@@ -12,10 +12,12 @@ import matplotlib.pyplot as plt
 
 def records(fp):
     df = pd.read_csv(fp)
-    for (i, g) in df.groupby('query', sort=False):
+    for ((q, c), g) in df.groupby(['query', 'gt'], sort=False):
         acc = g['pr'].eq(g['gt']).mean()
+        ctype = 'query' if c else 'small-talk'
         yield {
-            'query': i,
+            'query': q,
+            'ctype': ctype,
             'acc': acc,
         }
 
@@ -27,6 +29,8 @@ if __name__ == '__main__':
     args = arguments.parse_args()
 
     df = pd.DataFrame.from_records(records(sys.stdin))
+    assert df['query'].value_counts().eq(1).all()
+
     if args.without_zero:
         df = df.query('acc > 0')
     df = (df
@@ -39,7 +43,9 @@ if __name__ == '__main__':
 
     sns.barplot(data=df,
                 y='query',
-                x='acc')
-    plt.xlabel('Accuracy')
+                x='acc',
+                hue='ctype')
+    plt.legend(title='Query type')
+    plt.xlabel('Fraction of models correctly classifying')
     plt.ylabel('')
     plt.savefig(args.output, bbox_inches='tight')
