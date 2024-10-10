@@ -8,18 +8,17 @@ from mylib import DataSplitter
 
 def scanf(args, fp):
     usecols = (
-        'question',
-        'classification',
+        'Question',
+        'Classification',
     )
 
     reader = csv.DictReader(fp)
     for row in reader:
         (q, c) = map(row.get, usecols)
-        if not args.with_ignore and ctype == 'ignore':
+        if not args.with_ignore and c == 'ignore':
             continue
-        if args.collapse_negatives and ctype == 'query':
-            ctype = 'small-talk'
-
+        if args.collapse_negatives and c != 'query':
+            c = 'small-talk'
         yield {
             'query': q,
             'gt': c,
@@ -35,5 +34,5 @@ if __name__ == '__main__':
 
     df = pd.DataFrame.from_records(scanf(args, sys.stdin))
 
-    splitter = DataSplitter(args.args.train_size, args.seed)
+    splitter = DataSplitter(args.train_size, args.seed)
     splitter.split(df, 'gt').to_csv(sys.stdout, index=False)
