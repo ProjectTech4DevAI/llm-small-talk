@@ -1,22 +1,18 @@
 import sys
-import csv
-import logging
 from argparse import ArgumentParser
 
 import pandas as pd
-from sklearn.model_selection import train_test_split
 
-def split(df, train_size):
-    data = train_test_split(
-        df,
-        train_size=train_size,
-        random_state=args.seed,
-        stratify=df['classification'],
-    )
+from mylib import DataSplitter
 
-    for (i, d) in enumerate(data):
-        train = int(not i)
-        yield d.assign(train=train)
+def refine(df, size, seed):
+    splitter = DataSplitter(size, seed)
+    for (i, g) in df.groupby('train', sort=False):
+        if i:
+            g = (splitter
+                 .split(g, 'gt')
+                 .query('train == 1'))
+        yield g
 
 if __name__ == '__main__':
     arguments = ArgumentParser()
@@ -24,13 +20,8 @@ if __name__ == '__main__':
     arguments.add_argument('--train-size', type=float, default=0.8)
     args = arguments.parse_args()
 
-    ctype = 'classification'
-    df = pd.read_csv(sys.stdin, usecols=['question', ctype])
-    if not args.with_ignore:
-        df = df.query(f'{ctype} != "ignore"')
-    if args.collapse_negatives:
-        to_replace = ({ctype: x} for x in (r'^(?!.*query).*$', 'small-talk'))
-        df = df.replace(*to_replace, regex=True)
-
-    df = pd.concat(split(df, args.train_size))
+    objs = refine(pd.read_csv(sys.stdin), args.train_size, args.seed)
+    df = (pd
+          .concat(objs)
+          .assign(seed=args.seed))
     df.to_csv(sys.stdout, index=False)
