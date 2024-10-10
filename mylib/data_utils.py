@@ -2,6 +2,11 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 class DataSplitter:
+    _splits = (
+        'train',
+        'test',
+    )
+
     def __init__(self, train_size, random_state):
         self.train_size = train_size
         self.random_state = random_state
@@ -17,6 +22,5 @@ class DataSplitter:
             stratify=df[stratify],
         )
 
-        for (i, d) in enumerate(data):
-            train = int(not i)
-            yield d.assign(train=train)
+        for (s, d) in zip(self._splits, data):
+            yield d.assign(split=s)
