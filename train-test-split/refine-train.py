@@ -7,11 +7,11 @@ from mylib import DataSplitter
 
 def refine(df, size, seed):
     splitter = DataSplitter(size, seed)
-    for (i, g) in df.groupby('train', sort=False):
-        if i:
+    for (i, g) in df.groupby('split', sort=False):
+        if i == 'train':
             g = (splitter
                  .split(g, 'gt')
-                 .query('train == 1'))
+                 .query('split == "train"'))
         yield g
 
 if __name__ == '__main__':
@@ -20,8 +20,9 @@ if __name__ == '__main__':
     arguments.add_argument('--train-size', type=float, default=0.8)
     args = arguments.parse_args()
 
-    objs = refine(pd.read_csv(sys.stdin), args.train_size, args.seed)
     df = (pd
-          .concat(objs)
+          .read_csv(sys.stdin)
           .assign(seed=args.seed))
+    if 0 < args.train_size < 1:
+        df = pd.concat(refine(df, args.train_size, args.seed))
     df.to_csv(sys.stdout, index=False)
