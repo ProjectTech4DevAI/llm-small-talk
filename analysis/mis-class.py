@@ -24,6 +24,7 @@ def records(fp):
 if __name__ == '__main__':
     arguments = ArgumentParser()
     arguments.add_argument('--output', type=Path)
+    arguments.add_argument('--dump-raw', type=Path)
     arguments.add_argument('--bottom-k', type=int, default=10)
     arguments.add_argument('--without-zero', action='store_true')
     args = arguments.parse_args()
@@ -31,8 +32,11 @@ if __name__ == '__main__':
     df = pd.DataFrame.from_records(records(sys.stdin))
     assert df['query'].value_counts().eq(1).all()
 
+    if args.dump_raw is not None:
+        df.to_csv(args.dump_raw, index=False)
     if args.without_zero:
         df = df.query('acc > 0')
+
     df = (df
           .sort_values(by='acc')
           .head(args.bottom_k))
