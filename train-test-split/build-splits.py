@@ -33,8 +33,7 @@ if __name__ == '__main__':
     arguments.add_argument('--collapse-negatives', action='store_true')
     args = arguments.parse_args()
 
-    splitter = DataSplitter(args.args.train_size, args.seed)
-
     df = pd.DataFrame.from_records(scanf(args, sys.stdin))
-    splits = splitter(df, 'gt')
-    splits.to_csv(sys.stdout, index=False)
+
+    splitter = DataSplitter(args.args.train_size, args.seed)
+    splitter.split(df, 'gt').to_csv(sys.stdout, index=False)

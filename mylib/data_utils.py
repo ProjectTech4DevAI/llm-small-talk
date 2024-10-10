@@ -6,10 +6,10 @@ class DataSplitter:
         self.train_size = train_size
         self.random_state = random_state
 
-    def __call__(self, df, stratify):
-        return pd.concat(self.split(df, stratify))
-
     def split(self, df, stratify):
+        return pd.concat(self.train_test(df, stratify))
+
+    def train_test(self, df, stratify):
         data = train_test_split(
             df,
             train_size=self.train_size,
