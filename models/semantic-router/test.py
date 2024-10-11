@@ -9,7 +9,7 @@ from semantic_router import Route
 from semantic_router.layer import RouteLayer
 from semantic_router.encoders import OpenAIEncoder
 
-from mylib import Logger
+from mylib import Logger, DataReader
 
 # sagemaker_config_logger = logging.getLogger('sagemaker.config')
 # sagemaker_config_logger.setLevel(logging.WARNING)
@@ -32,20 +32,15 @@ class SemanticRouter:
     def __call__(self, query):
         return self.rl(query).name
 
-def extract(path, split):
-    return (pd
-            .read_csv(path)
-            .query(f'split == "{split}"'))
-
 #
 #
 #
 def func(incoming, outgoing, dpath):
-    df = extract(dpath, 'train')
+    reader = DataReader(dpath)
     static = {
-        'data': dpath.name,
-        'train_n': len(df),
-        'train_c': df['gt'].unique().size,
+        'data': str(reader),
+        'train_n': len(reader.train),
+        'train_c': reader.train['gt'].unique().size,
     }
     router = SemanticRouter(df)
 
@@ -77,12 +72,12 @@ if __name__ == '__main__':
     )
 
     with Pool(args.workers, func, initargs):
-        df = extract(args.data, 'test')
-        for i in df.itertuples(index=False):
+        reader = DataReader(args.data)
+        for i in reader.test.itertuples(index=False):
             outgoing.put(i._asdict())
 
         writer = None
-        for _ in range(len(df)):
+        for _ in range(len(reader.test)):
             row = incoming.get()
             if writer is None:
                 writer = csv.DictWriter(sys.stdout, fieldnames=row)
