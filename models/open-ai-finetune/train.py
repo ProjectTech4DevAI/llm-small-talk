@@ -1,12 +1,11 @@
-import sys
 import json
+import time
 import itertools as it
 from pathlib import Path
 from argparse import ArgumentParser
-from tempfile import TemporaryDirectory, NamedTemporaryFile
+from tempfile import TemporaryDirectory
 from dataclasses import dataclass, asdict
 
-import pandas as pd
 from scipy import constants
 from openai import OpenAI
 
@@ -55,10 +54,12 @@ if __name__ == '__main__':
                    .joinpath(args.data.stem)
                    .with_suffix('.jsonl'))
         samples.write_text('\n'.join(messages(reader.train, system)))
-        training_file = client.files.create(
-            file=samples.open('rb'),
-            purpose='fine-tune',
-        )
+
+        with samples.open('rb') as fp:
+            training_file = client.files.create(
+                file=fp,
+                purpose='fine-tune',
+            )
 
     seed = reader.train['seed'].unique().item()
     ft_job = client.fine_tuning.jobs.create(
