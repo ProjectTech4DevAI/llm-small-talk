@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory, NamedTemporaryFile
 from dataclasses import dataclass, asdict
 
 import pandas as pd
+from scipy import constants
 from openai import OpenAI
 
 from mylib import Logger, DataReader
@@ -37,8 +38,8 @@ if __name__ == '__main__':
     arguments = ArgumentParser()
     arguments.add_argument('--data', type=Path)
     arguments.add_argument('--system-prompt', type=Path)
+    arguments.add_argument('--wait-time-minutes', type=int, default=10)
     arguments.add_argument('--model', default='gpt-4o-mini-2024-07-18')
-    # arguments.add_argument('--workers', type=int)
     args = arguments.parse_args()
 
     system = (args
@@ -49,23 +50,42 @@ if __name__ == '__main__':
     client = OpenAI()
 
     with TemporaryDirectory() as tmpdir:
-        output = Path(tmpdir)
-        samples = (output
+        path = Path(tmpdir)
+        samples = (path
                    .joinpath(args.data.stem)
                    .with_suffix('.jsonl'))
         samples.write_text('\n'.join(messages(reader.train, system)))
-
-        seed = reader.train['seed'].unique().item()
         training_file = client.files.create(
             file=samples.open('rb'),
             purpose='fine-tune',
         )
-        job = client.fine_tuning.jobs.create(
-            model=args.model,
-            training_file=training_file.id,
-            suffix=args.data.name,
-            seed=seed,
-        )
-        Logger.info(job)
 
-        # open ai training
+    seed = reader.train['seed'].unique().item()
+    ft_job = client.fine_tuning.jobs.create(
+        model=args.model,
+        training_file=training_file.id,
+        suffix=args.data.name,
+        seed=seed,
+    )
+    Logger.info(ft_job)
+
+    success = 'succeeded'
+    stop = set([
+        'failed',
+        'cancelled',
+        success,
+    ])
+    default_wait = constants.minute * args.wait_time_minutes
+    while True:
+        status = client.fine_tuning.jobs.retrieve(ft_job.id)
+        if status.status in stop:
+            if not status.status != success:
+                Logger.error(f'{status.id}: {status.error}')
+            print(status.to_json(indent=3))
+            break
+        if status.estimated_finish is None:
+            wait = default_wait
+        else:
+            wait = max(status.estimated_finish - time.time(), 10)
+        Logger.info(f'{status.id}: waiting {wait}s')
+        time.sleep(wait)
