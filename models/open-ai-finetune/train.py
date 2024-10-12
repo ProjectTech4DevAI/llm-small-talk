@@ -80,7 +80,7 @@ if __name__ == '__main__':
     while True:
         status = client.fine_tuning.jobs.retrieve(ft_job.id)
         if status.status in stop:
-            if not status.status != success:
+            if status.status != success:
                 Logger.error(f'{status.id}: {status.error}')
             print(status.to_json(indent=3))
             break
