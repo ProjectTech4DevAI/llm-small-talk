@@ -1,4 +1,5 @@
 import sys
+import collections as cl
 from pathlib import Path
 from argparse import ArgumentParser
 
@@ -13,13 +14,17 @@ if __name__ == '__main__':
     args = arguments.parse_args()
 
     split = 'split'
-    sizes = set()
+    sizes = cl.Counter()
+
     for i in args.data.iterdir():
         df = (pd
               .read_csv(i, usecols=[split])
               .query(f'{split} == "train"'))
+
         n = len(df)
-        if n not in sizes:
-            Logger.info(f'{i.name} {n}')
-            print(i)
-            sizes.add(n)
+        if args.sample is not None and sizes[n] > args.sample:
+            continue
+        sizes[n] += 1
+
+        Logger.info(f'{i.name} {n}')
+        print(i)
