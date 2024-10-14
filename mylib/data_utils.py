@@ -1,3 +1,4 @@
+import functools as ft
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -28,11 +29,22 @@ class DataSplitter:
         for (s, d) in zip(self._splits, data):
             yield d.assign(split=s)
 
+#
+#
+#
 @dataclass
 class DataReader:
     path: Path
     train: pd.DataFrame
     test: pd.DataFrame
+
+    @ft.cached_property
+    def info(self):
+        return (
+            ('data', str(self)),
+            ('train_n', len(self.train)),
+            ('train_c', self.train['gt'].unique().size),
+        )
 
     def __init__(self, path):
         self.path = path
