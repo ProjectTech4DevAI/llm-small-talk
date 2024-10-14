@@ -9,7 +9,7 @@ from semantic_router import Route
 from semantic_router.layer import RouteLayer
 from semantic_router.encoders import OpenAIEncoder
 
-from mylib import Logger, DataReader
+from mylib import Logger, Prompt, DataReader, TrainIterator, TestIterator
 
 # sagemaker_config_logger = logging.getLogger('sagemaker.config')
 # sagemaker_config_logger.setLevel(logging.WARNING)
@@ -30,29 +30,29 @@ class SemanticRouter:
         self.rl = RouteLayer(encoder=encoder, routes=routes)
 
     def __call__(self, query):
-        return self.rl(query).name
+        response = self.rl(query)
+        return response.name
 
 #
 #
 #
 def func(incoming, outgoing, dpath):
     reader = DataReader(dpath)
-    static = {
-        'data': str(reader),
-        'train_n': len(reader.train),
-        'train_c': reader.train['gt'].unique().size,
-    }
-    router = SemanticRouter(df)
+    router = SemanticRouter(reader.train)
+    iterable = TrainIterator(reader)
 
     while True:
         sample = incoming.get()
+
         query = sample['query']
         Logger.info(query)
-        outgoing.put({
-            **static,
+        record = dict(reader.info)
+        record.update({
             **sample,
             'pr': router(query),
         })
+
+        outgoing.put(record)
 
 #
 #
@@ -72,12 +72,14 @@ if __name__ == '__main__':
     )
 
     with Pool(args.workers, func, initargs):
-        reader = DataReader(args.data)
-        for i in reader.test.itertuples(index=False):
-            outgoing.put(i._asdict())
+        jobs = 0
+        iterable = TestIterator(DataReader(args.data))
+        for i in iterable:
+            outgoing.put(i)
+            jobs += 1
 
         writer = None
-        for _ in range(len(reader.test)):
+        for _ in range(jobs):
             row = incoming.get()
             if writer is None:
                 writer = csv.DictWriter(sys.stdout, fieldnames=row)
