@@ -46,3 +46,22 @@ class DataReader:
 
     def __str__(self):
         return self.path.name
+
+#
+#
+#
+class DataIterator:
+    def __init__(self, df):
+        self.df = df
+
+    def __iter__(self):
+        for i in self.df.itertuples(index=False):
+            yield i._asdict()
+
+class TrainIterator(DataIterator):
+    def __init__(self, reader):
+        super().__init__(reader.train)
+
+class TestIterator(DataIterator):
+    def __init__(self, reader):
+        super().__init__(reader.test)
