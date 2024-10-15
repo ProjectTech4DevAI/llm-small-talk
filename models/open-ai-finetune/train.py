@@ -70,20 +70,20 @@ if __name__ == '__main__':
     )
     Logger.info(ft_job)
 
-    success = 'succeeded'
-    stop = set([
+    failure = set([
         'failed',
         'cancelled',
-        success,
     ])
     default_wait = constants.minute * args.wait_time_minutes
+
     while True:
         status = client.fine_tuning.jobs.retrieve(ft_job.id)
-        if status.status in stop:
-            if status.status != success:
-                Logger.error(f'{status.id}: {status.error}')
+        if status.status == 'succeeded':
             print(status.to_json(indent=3))
             break
+        if status.status in failure:
+            raise RuntimeError(f'{status.id}: {status.error}')
+
         if status.estimated_finish is None:
             wait = default_wait
         else:
