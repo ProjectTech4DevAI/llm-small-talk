@@ -2,14 +2,19 @@ import sys
 import csv
 from pathlib import Path
 from argparse import ArgumentParser
+from dataclasses import asdict
 from multiprocessing import Pool, Queue
 
-import pandas as pd
 from semantic_router import Route
 from semantic_router.layer import RouteLayer
 from semantic_router.encoders import OpenAIEncoder
 
-from mylib import Logger, Prompt, DataReader, TrainIterator, TestIterator
+from mylib import (
+    Logger,
+    DataReader,
+    PromptTimer,
+    TestIterator,
+)
 
 # sagemaker_config_logger = logging.getLogger('sagemaker.config')
 # sagemaker_config_logger.setLevel(logging.WARNING)
@@ -17,7 +22,7 @@ from mylib import Logger, Prompt, DataReader, TrainIterator, TestIterator
 #
 #
 #
-class SemanticRouter:
+class SemanticRouter(PromptTimer):
     @staticmethod
     def routes(df):
         for (name, g) in df.groupby('gt', sort=False):
@@ -25,12 +30,15 @@ class SemanticRouter:
             yield Route(name=name, utterances=utterances)
 
     def __init__(self, df):
+        super().__init__()
         encoder = OpenAIEncoder()
         routes = list(self.routes(df))
         self.rl = RouteLayer(encoder=encoder, routes=routes)
 
-    def __call__(self, query):
-        response = self.rl(query)
+    def send(self, messages):
+        return self.rl(messages)
+
+    def receive(self, response):
         return response.name
 
 #
@@ -39,20 +47,19 @@ class SemanticRouter:
 def func(incoming, outgoing, dpath):
     reader = DataReader(dpath)
     router = SemanticRouter(reader.train)
-    iterable = TrainIterator(reader)
 
     while True:
         sample = incoming.get()
 
         query = sample['query']
         Logger.info(query)
-        record = dict(reader.info)
-        record.update({
-            **sample,
-            'pr': router(query),
-        })
+        response = asdict(router(query))
 
-        outgoing.put(record)
+        outgoing.put({
+            **reader.info,
+            **sample,
+            **response,
+        })
 
 #
 #
