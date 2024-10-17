@@ -50,16 +50,14 @@ def func(incoming, outgoing, dpath):
 
     while True:
         sample = incoming.get()
+        record = dict(reader.info, **sample)
 
         query = sample['query']
         Logger.info(query)
-        response = asdict(router(query))
+        response = router(query)
 
-        outgoing.put({
-            **reader.info,
-            **sample,
-            **response,
-        })
+        record.update(asdict(response))
+        outgoing.put(record)
 
 #
 #
