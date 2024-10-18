@@ -9,6 +9,8 @@ from multiprocessing import Pool, Queue
 import pandas as pd
 import sklearn.metrics as mt
 
+GroupKey = cl.namedtuple('GroupKey', 'data, train_n, seed, model')
+
 #
 #
 #
@@ -52,7 +54,7 @@ class FalseNegative(RateMetric):
 #
 #
 def func(incoming, outgoing):
-    metrics = {
+    _metrics = {
         'Accuracy': Accuracy(),
         'Matthews Corr. Coef.': Matthews(),
         'False Pos. Rate': FalsePositive(),
@@ -64,17 +66,15 @@ def func(incoming, outgoing):
         logging.warning(group)
 
         records = []
-        for (i, (_, g)) in enumerate(df.groupby('rndseed', sort=False)):
-            assert group == g['train_n'].unique().item()
-            (gt, pr) = (g[x] for x in ('gt', 'pr'))
-            for (k, v) in metrics.items():
-                score = v(gt, pr)
-                records.append({
-                    'seed': i,
-                    'support': group,
-                    'metric': k,
-                    'score': score,
-                })
+        (gt, pr) = (df[x] for x in ('gt', 'pr'))
+        for (m, f) in _metrics.items():
+            score = f(gt, pr)
+            rec = group._asdict()
+            rec.update({
+                'metric': m,
+                'score': score,
+            })
+            records.append(rec)
 
         outgoing.put(records)
 
@@ -91,11 +91,13 @@ if __name__ == '__main__':
     )
 
     with Pool(args.workers, func, initargs):
+        by = list(GroupKey._fields)
         groups = (pd
                   .read_csv(sys.stdin)
-                  .groupby('train_n', sort=False))
-        for g in groups:
-            outgoing.put(g)
+                  .groupby(by, sort=False))
+        for (i, g) in groups:
+            key = GroupKey(*i)
+            outgoing.put((key, g))
 
         writer = None
         for _ in range(groups.ngroups):
