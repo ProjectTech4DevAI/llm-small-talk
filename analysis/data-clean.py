@@ -3,21 +3,31 @@ import csv
 import logging
 from pathlib import Path
 from argparse import ArgumentParser
-from multiprocessing import Pool
+from multiprocessing import Pool, Queue
 
-def func(args):
-    (path, pos) = args
-    logging.warning(path)
+def func(incoming, outgoing, args):
+    while True:
+        (dtype, path) = incoming.get()
+        logging.warning(path)
 
-    records = []
-    with path.open() as fp:
-        reader = csv.DictReader(fp)
-        for row in reader:
-            for c in ('gt', 'pr'):
-                row[c] = int(row[c] == pos)
-            records.append(row)
+        records = []
+        with path.open() as fp:
+            reader = csv.DictReader(fp)
+            for row in reader:
+                row['model'] = dtype
+                for c in ('gt', 'pr'):
+                    pos = row[c] == args.positive
+                    row[c] = int(pos)
+                records.append(row)
 
-    return records
+        outgoing.put(records)
+
+def scan(args):
+    for data in args.data.iterdir():
+        assert data.is_dir()
+        dtype = data.name
+        for i in data.iterdir():
+            yield (dtype, i)
 
 if __name__ == '__main__':
     arguments = ArgumentParser()
@@ -26,11 +36,24 @@ if __name__ == '__main__':
     arguments.add_argument('--workers', type=int)
     args = arguments.parse_args()
 
-    with Pool(args.workers) as pool:
+    incoming = Queue()
+    outgoing = Queue()
+    initargs = (
+        outgoing,
+        incoming,
+        args,
+    )
+
+    with Pool(args.workers, func, initargs):
+        jobs = 0
+        for i in scan(args):
+            outgoing.put(i)
+            jobs += 1
+
         writer = None
-        iterable = ((x, args.positive) for x in args.data.iterdir())
-        for i in pool.imap_unordered(func, iterable):
+        for _ in range(jobs):
+            rows = incoming.get()
             if writer is None:
-                writer = csv.DictWriter(sys.stdout, fieldnames=i[0])
+                writer = csv.DictWriter(sys.stdout, fieldnames=rows[0])
                 writer.writeheader()
-            writer.writerows(i)
+            writer.writerows(rows)
