@@ -5,13 +5,11 @@ ROOT=`git rev-parse --show-toplevel`
 source $ROOT/config.rc
 source $ROOT/venv/bin/activate
 
-_var=$ROOT/var/binary_c
-
-output=$_var/results/semantic-router
+output=$SMALL_TALK_OUTPUT/semantic-router/results
 rm --recursive --force $output
 mkdir --parents $output
 
-for i in $_var/data/*.csv; do
+for i in $SMALL_TALK_DATA/*.csv; do
     out=$output/`basename $i`
     cat <<EOF
 echo "[ `date` ] $i" 1>&2 && \

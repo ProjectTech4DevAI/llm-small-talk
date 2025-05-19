@@ -6,15 +6,14 @@ source $ROOT/config.rc
 source $ROOT/venv/bin/activate
 
 _src=$ROOT/models/open-ai-finetune
-_var=$ROOT/var
 
-ft_out=$_var/binary_c/openai-ft
-# rm --recursive --force $ft_out
-# mkdir --parents $ft_out
+output=$SMALL_TALK_OUTPUT/openai/models
+rm --recursive --force $output
+mkdir --parents $output
 
-python $_src/select-data.py --data $_var/binary_c/data \
+python $_src/select-data.py --data $SMALL_TALK_DATA \
     | while read; do
-    out=$ft_out/`basename --suffix=.csv $REPLY`.json
+    out=$output/`basename --suffix=.csv $REPLY`.json
     if [ ! -e $out ]; then
 	tmp=`mktemp`
 	cat <<EOF
