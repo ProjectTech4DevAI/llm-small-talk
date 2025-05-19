@@ -201,6 +201,7 @@ for i in $SMALL_TALK_OUTPUT/openai/models/*.json; do
 	       --data $SMALL_TALK_DATA < $i > $out
     fi
 done
+```
 
 # Analysis
 
