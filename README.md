@@ -188,6 +188,7 @@ python models/open-ai-finetune/select-data.py --data $SMALL_TALK_DATA \
 	    && mv $tmp $out
     fi
 done
+```
 
 Using the output of each training run -- invocation of `train.py` --
 test the fine tuned model on the test set:
