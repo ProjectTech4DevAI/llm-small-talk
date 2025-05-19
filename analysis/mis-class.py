@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 def records(fp):
     df = pd.read_csv(fp)
     for ((q, c), g) in df.groupby(['query', 'gt'], sort=False):
-        acc = g['pr'].eq(g['gt']).mean()
+        acc = 1 - g['pr'].eq(g['gt']).mean()
         ctype = 'query' if c else 'small-talk'
         yield {
             'query': q,
@@ -35,21 +35,30 @@ if __name__ == '__main__':
     if args.dump_raw is not None:
         df.to_csv(args.dump_raw, index=False)
     if args.without_zero:
-        df = df.query('acc > 0')
-
+        df = df.query('acc < 1')
     df = (df
-          .sort_values(by='acc')
+          .sort_values(by='acc', ascending=False)
           .head(args.bottom_k))
+
+    sns.set_context('talk')
 
     fig = plt.gcf()
     (w, h) = fig.get_size_inches()
     fig.set_size_inches(w * 2, h)
 
-    sns.barplot(data=df,
-                y='query',
-                x='acc',
-                hue='ctype')
-    plt.legend(title='Query type')
-    plt.xlabel('Fraction of models correctly classifying')
+    sns.barplot(
+        y='query',
+        x='acc',
+        hue='ctype',
+        data=df,
+    )
+    plt.legend(
+        title='Human classification',
+        fontsize='small',
+    )
+    plt.xlabel('Fraction of models misclassifying')
     plt.ylabel('')
+    plt.grid(axis='x', alpha=0.4)
+    plt.xlim(0, 1)
+
     plt.savefig(args.output, bbox_inches='tight')
