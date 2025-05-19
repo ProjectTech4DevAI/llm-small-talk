@@ -101,10 +101,20 @@ You can then run the scripts in `bin`:
 ./bin/openai/test.sh
 ```
 
-This will leave results files in `var` (`find var -name
-'results'`). Those files can be analyzed using scripts in `analysis`.
+This will leave results files in `$SMALL_TALK_OUTPUT`:
+
+```bash
+find $SMALL_TALK_OUTPUT -name results
+```
+
+Those files can be analyzed using scripts in `analysis`.
+
 
 ### Detailed runs
+
+Using the pre-made scripts in `bin` is the recommended way of running
+this pipeline. The instructions presented in this section are for
+those interested in going behind the scenes.
 
 #### Data preparation
 
