@@ -69,7 +69,7 @@ SMALL_TALK_DATA=$SMALL_TALK_OUTPUT/data
 and that the `OUTPUT` directory exists:
 
 ```bash
-mkdir $OUTPUT
+mkdir $SMALL_TALK_OUTPUT
 ```
 
 ## Automated running
